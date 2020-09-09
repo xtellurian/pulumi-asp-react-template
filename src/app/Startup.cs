@@ -22,6 +22,7 @@ namespace app
         public void ConfigureServices(IServiceCollection services)
         {
             services.Configure<SecretForecast>(Configuration);
+            services.Configure<StorageAccountConfig>(Configuration.GetSection("StorageAccount"));
             services.AddControllersWithViews();
 
             // In production, the React files will be served from this directory

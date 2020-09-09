@@ -77,6 +77,7 @@ const app = new azure.appservice.AppService(`${prefix}-as`, {
     DOCKER_REGISTRY_SERVER_USERNAME: acr.adminUsername,
     WEBSITES_ENABLE_APP_SERVICE_STORAGE: "false",
     KeyVaultUri: keyVault.vaultUri,
+    StorageAccount__TableName: table.name,
   },
   siteConfig: {
     alwaysOn: true,

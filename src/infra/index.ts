@@ -23,9 +23,8 @@ const storageAccount = new azure.storage.Account(storageAccountName, {
 
 const appServicePlan = new azure.appservice.Plan(`${prefix}-asp`, {
   ...resourceGroupArgs,
-
-  kind: "App",
-
+  reserved: true,
+  kind: "Linux",
   sku: {
     tier: "Basic",
     size: "B1",
@@ -36,16 +35,6 @@ const storageContainer = new azure.storage.Container(`${prefix}-c`, {
   storageAccountName: storageAccount.name,
   containerAccessType: "private",
 });
-
-const blob = new azure.storage.Blob(`${prefix}-b`, {
-  storageAccountName: storageAccount.name,
-  storageContainerName: storageContainer.name,
-  type: "Block",
-
-  source: new pulumi.asset.FileArchive("wwwroot"),
-});
-
-const codeBlobUrl = azure.storage.signedBlobReadUrl(blob, storageAccount);
 
 const table = new azure.storage.Table(`${prefix}-table`, {
   storageAccountName: storageAccount.name,
@@ -58,16 +47,30 @@ const appInsights = new azure.appinsights.Insights(`${prefix}-ai`, {
   applicationType: "web",
 });
 
+const acr = new azure.containerservice.Registry("acr", {
+  ...resourceGroupArgs,
+  adminEnabled: true,
+  sku: "Standard",
+});
+
+const imageName = pulumi.interpolate`${acr.loginServer}/app`;
+
 const app = new azure.appservice.AppService(`${prefix}-as`, {
   ...resourceGroupArgs,
 
   appServicePlanId: appServicePlan.id,
-
   appSettings: {
     APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.instrumentationKey,
     APPLICATIONINSIGHTS_CONNECTION_STRING: pulumi.interpolate`InstrumentationKey=${appInsights.instrumentationKey}`,
     ApplicationInsightsAgent_EXTENSION_VERSION: "~2",
-    WEBSITE_RUN_FROM_PACKAGE: codeBlobUrl,
+    DOCKER_REGISTRY_SERVER_PASSWORD: acr.adminPassword,
+    DOCKER_REGISTRY_SERVER_URL: pulumi.interpolate`https://${acr.loginServer}`,
+    DOCKER_REGISTRY_SERVER_USERNAME: acr.adminUsername,
+    WEBSITES_ENABLE_APP_SERVICE_STORAGE: "false",
+  },
+  siteConfig: {
+    alwaysOn: true,
+    linuxFxVersion: pulumi.interpolate`DOCKER|${imageName}:latest`,
   },
 
   connectionStrings: [
@@ -78,5 +81,5 @@ const app = new azure.appservice.AppService(`${prefix}-as`, {
     },
   ],
 });
-
+export const acrName = acr.name;
 export const endpoint = pulumi.interpolate`https://${app.defaultSiteHostname}`;

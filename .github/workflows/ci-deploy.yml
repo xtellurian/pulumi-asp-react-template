@@ -20,6 +20,7 @@ jobs:
       - name: Pulumi up
         working-directory: src/infra
         run: |
+          pulumi stack select prd
           pulumi up -y
         env:
           ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}

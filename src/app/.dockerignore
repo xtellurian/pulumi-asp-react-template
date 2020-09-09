@@ -1,0 +1,8 @@
+.vscode/
+**/[Bb]in/
+**/[Oo]bj/
+Dockerfile
+azure-pipelines.yaml
+.gitignore
+**/TestOutput.xml
+**/node_modules/**

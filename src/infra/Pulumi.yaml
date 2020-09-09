@@ -1,0 +1,3 @@
+name: template
+runtime: nodejs
+description: A template for ASP, React, and Azure

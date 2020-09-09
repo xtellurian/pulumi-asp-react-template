@@ -4,3 +4,6 @@ config:
   azure:tenantId: 617bc365-674a-436e-8a27-5bacbe6df190
   template:sqlPassword:
     secure: AAABAOLxRzqYlVvHQXP2LInL0Uxtqupcx+F3NQsciP25WEYfjihqBedGnw==
+  azure:identities:
+  - name: rian
+    objectId: 16ab5eb9-f9e7-4df0-b40c-58ad0e0022d8

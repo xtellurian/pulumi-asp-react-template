@@ -9,16 +9,13 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/app/bin/Debug/netcoreapp3.1/app.dll",
+            "program": "${workspaceFolder}/src/app/bin/Debug/netcoreapp3.1/app.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/app",
+            "cwd": "${workspaceFolder}/src/app",
             "stopAtEntry": false,
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             },
-            "sourceFileMap": {
-                "/Views": "${workspaceFolder}/Views"
-            }
         },
         {
             "name": ".NET Core Attach",

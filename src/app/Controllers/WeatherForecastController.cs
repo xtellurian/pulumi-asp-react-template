@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using app.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace app.Controllers
 {
@@ -17,23 +18,33 @@ namespace app.Controllers
         };
 
         private readonly ILogger<WeatherForecastController> _logger;
+        private readonly IOptions<SecretForecast> secretOptions;
 
-        public WeatherForecastController(ILogger<WeatherForecastController> logger)
+        public WeatherForecastController(ILogger<WeatherForecastController> logger, IOptions<SecretForecast> secretOptions)
         {
             _logger = logger;
+            this.secretOptions = secretOptions;
         }
 
         [HttpGet]
         public IEnumerable<WeatherForecast> Get()
         {
             var rng = new Random();
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            var forecasts = Enumerable.Range(1, 5).Select(index => new WeatherForecast
             {
                 Date = DateTime.Now.AddDays(index),
                 TemperatureC = rng.Next(-20, 55),
                 Summary = Summaries[rng.Next(Summaries.Length)]
             })
-            .ToArray();
+            .ToList();
+
+            forecasts.Add(new WeatherForecast
+            {
+                Date = DateTime.MinValue,
+                TemperatureC = -99,
+                Summary = secretOptions.Value.Summary
+            });
+            return forecasts;
         }
     }
 }

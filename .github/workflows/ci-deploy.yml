@@ -17,6 +17,9 @@ jobs:
           fetch-depth: 1
       - name: Install Pulumi CLI
         uses: pulumi/action-install-pulumi-cli@releases/v1
+      - name: npm install
+        working-directory: src/infra
+        run: npm i
       - name: Pulumi up
         working-directory: src/infra
         run: |

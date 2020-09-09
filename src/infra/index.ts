@@ -7,51 +7,55 @@ const prefix = pulumi.getStack().substring(0, 9);
 const resourceGroup = new azure.core.ResourceGroup(`${prefix}-rg`);
 
 const resourceGroupArgs = {
-    resourceGroupName: resourceGroup.name,
-    location: resourceGroup.location,
+  resourceGroupName: resourceGroup.name,
+  location: resourceGroup.location,
 };
 
 // Storage Account name must be lowercase and cannot have any dash characters
 const storageAccountName = `${prefix.toLowerCase().replace(/-/g, "")}sa`;
 const storageAccount = new azure.storage.Account(storageAccountName, {
-    ...resourceGroupArgs,
+  ...resourceGroupArgs,
 
-    accountKind: "StorageV2",
-    accountTier: "Standard",
-    accountReplicationType: "LRS",
+  accountKind: "StorageV2",
+  accountTier: "Standard",
+  accountReplicationType: "LRS",
 });
 
-
 const appServicePlan = new azure.appservice.Plan(`${prefix}-asp`, {
-    ...resourceGroupArgs,
+  ...resourceGroupArgs,
 
-    kind: "App",
+  kind: "App",
 
-    sku: {
-        tier: "Basic",
-        size: "B1",
-    },
+  sku: {
+    tier: "Basic",
+    size: "B1",
+  },
 });
 
 const storageContainer = new azure.storage.Container(`${prefix}-c`, {
-    storageAccountName: storageAccount.name,
-    containerAccessType: "private",
+  storageAccountName: storageAccount.name,
+  containerAccessType: "private",
 });
 
 const blob = new azure.storage.Blob(`${prefix}-b`, {
-    storageAccountName: storageAccount.name,
-    storageContainerName: storageContainer.name,
-    type: "Block",
+  storageAccountName: storageAccount.name,
+  storageContainerName: storageContainer.name,
+  type: "Block",
 
-    source: new pulumi.asset.FileArchive("wwwroot"),
+  source: new pulumi.asset.FileArchive("wwwroot"),
 });
 
 const codeBlobUrl = azure.storage.signedBlobReadUrl(blob, storageAccount);
 
-const appInsights = new azure.appinsights.Insights(`${prefix}-ai`, {
-    ...resourceGroupArgs,
+const table = new azure.storage.Table(`${prefix}-table`, {
+  storageAccountName: storageAccount.name,
+  name: "data",
+});
 
-    applicationType: "web",
+const appInsights = new azure.appinsights.Insights(`${prefix}-ai`, {
+  ...resourceGroupArgs,
+
+  applicationType: "web",
 });
 
 const username = "pulumi";
@@ -60,40 +64,25 @@ const username = "pulumi";
 const config = new pulumi.Config();
 const pwd = config.require("sqlPassword");
 
-const sqlServer = new azure.sql.SqlServer(`${prefix}-sql`, {
-    ...resourceGroupArgs,
-
-    administratorLogin: username,
-    administratorLoginPassword: pwd,
-    version: "12.0",
-});
-
-const database = new azure.sql.Database(`${prefix}-db`, {
-    ...resourceGroupArgs,
-    serverName: sqlServer.name,
-    requestedServiceObjectiveName: "S0",
-});
-
 const app = new azure.appservice.AppService(`${prefix}-as`, {
-    ...resourceGroupArgs,
+  ...resourceGroupArgs,
 
-    appServicePlanId: appServicePlan.id,
+  appServicePlanId: appServicePlan.id,
 
+  appSettings: {
+    APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.instrumentationKey,
+    APPLICATIONINSIGHTS_CONNECTION_STRING: pulumi.interpolate`InstrumentationKey=${appInsights.instrumentationKey}`,
+    ApplicationInsightsAgent_EXTENSION_VERSION: "~2",
+    WEBSITE_RUN_FROM_PACKAGE: codeBlobUrl,
+  },
 
-    appSettings: {
-        APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.instrumentationKey,
-        APPLICATIONINSIGHTS_CONNECTION_STRING: pulumi.interpolate`InstrumentationKey=${appInsights.instrumentationKey}`,
-        ApplicationInsightsAgent_EXTENSION_VERSION: "~2",
-        WEBSITE_RUN_FROM_PACKAGE: codeBlobUrl,
+  connectionStrings: [
+    {
+      name: "storage",
+      value: storageAccount.primaryConnectionString.apply((t) => t),
+      type: "Custom",
     },
-
-    connectionStrings: [{
-        name: "db",
-        value:
-            pulumi.all([sqlServer.name, database.name]).apply(([server, db]) =>
-                `Server=tcp:${server}.database.windows.net;initial catalog=${db};user ID=${username};password=${pwd};Min Pool Size=0;Max Pool Size=30;Persist Security Info=true;`),
-        type: "SQLAzure",
-    }],
+  ],
 });
 
-export const endpoint = pulumi.interpolate `https://${app.defaultSiteHostname}`;
+export const endpoint = pulumi.interpolate`https://${app.defaultSiteHostname}`;

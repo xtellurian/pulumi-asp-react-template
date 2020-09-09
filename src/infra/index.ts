@@ -113,7 +113,6 @@ const appAccessPolicy = new azure.keyvault.AccessPolicy("app-kv", {
   tenantId,
   secretPermissions: ["list", "get", "set", "delete"], // need delete for pulumi destroy
 });
-
 // store a sample secret as a demonstration
 const sampleSecret = new azure.keyvault.Secret(
   `${prefix}-sample`,

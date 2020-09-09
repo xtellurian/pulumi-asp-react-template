@@ -1,7 +1,8 @@
 config:
   azure:environment: public
-  azure:location: AustraliaSouthEast
-  azure:tenantId: 617bc365-674a-436e-8a27-5bacbe6df190
   azure:identities:
   - name: rian
     objectId: 16ab5eb9-f9e7-4df0-b40c-58ad0e0022d8
+  azure:location: AustraliaSouthEast
+  azure:subscriptionId: 651f2ed5-6e2f-41d0-b533-0cd28801ef2a
+  azure:tenantId: 617bc365-674a-436e-8a27-5bacbe6df190

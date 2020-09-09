@@ -4,10 +4,23 @@ name: CI-deploy
 # events but only for the master branch
 on:
   push:
-    branches: [ master, 4-github-actions ]
+    branches: [master, 4-github-actions]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  pulumiUp:
+    name: Update
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Install Pulumi CLI
+        uses: pulumi/action-install-pulumi-cli@releases/v1
+      - name: Pulumi up
+        working-directory: src/infra
+        run: |
+          pulumi up -y
   deploy:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest

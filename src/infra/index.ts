@@ -58,12 +58,6 @@ const appInsights = new azure.appinsights.Insights(`${prefix}-ai`, {
   applicationType: "web",
 });
 
-const username = "pulumi";
-
-// Get the password to use for SQL from config.
-const config = new pulumi.Config();
-const pwd = config.require("sqlPassword");
-
 const app = new azure.appservice.AppService(`${prefix}-as`, {
   ...resourceGroupArgs,
 

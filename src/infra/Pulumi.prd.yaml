@@ -3,6 +3,9 @@ config:
   azure:identities:
   - name: rian
     objectId: 16ab5eb9-f9e7-4df0-b40c-58ad0e0022d8
+  - name: azsp
+    appId: a7b558fc-8dfa-4f2f-a374-5038e160e04c
+    objectId: 615eb14e-e7a5-41ab-a5c9-e6d7ef4d49e9
   azure:location: AustraliaSouthEast
   azure:subscriptionId: 651f2ed5-6e2f-41d0-b533-0cd28801ef2a
   azure:tenantId: 617bc365-674a-436e-8a27-5bacbe6df190

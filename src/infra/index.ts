@@ -102,6 +102,19 @@ identities.forEach((i) => {
     secretPermissions: ["list", "get", "set", "delete"], // need delete for pulumi destroy
   });
   keyVaultAccessPolicies.push(objectIdAccessPolicy);
+  if (i.appId) {
+    const appIdAccessPolicy = new azure.keyvault.AccessPolicy(
+      `${i.name}-app-kv`,
+      {
+        keyVaultId: keyVault.id,
+        objectId: i.objectId,
+        applicationId: i.appId,
+        tenantId,
+        secretPermissions: ["list", "get", "set", "delete"], // need delete for pulumi destroy
+      }
+    );
+    keyVaultAccessPolicies.push(appIdAccessPolicy);
+  }
 });
 
 // add the App Service, but only enable get for secrets

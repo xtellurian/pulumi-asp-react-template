@@ -42,14 +42,15 @@ jobs:
         working-directory: src/infra
         run: echo "::set-env name=ACR_NAME::$(pulumi stack output acrName)"
       - uses: actions/checkout@v2
+      - name: install azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | bash
       - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Azure CLI script
-        uses: azure/CLI@v1
-        with:
-          azcliversion: 2.0.72
-          inlineScript: |
-            cd src
-            ./deploy.sh $ACR_NAME
+        run: az login --service-principal -u $ARM_CLIENT_ID -p $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      - name: Deploy Script
+        working-directory: src
+        run: ./deploy.sh $ACR_NAME

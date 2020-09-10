@@ -62,16 +62,17 @@ jobs:
       - name: Push Docker Image to ACR
         working-directory: src/app
         run: |
+          TAG=$GITHUB_RUN_NUMBER
           docker build -t $ACR_NAME.azurecr.io/app:$TAG .
           docker push $ACR_NAME.azurecr.io/app:$TAG
         env:
           ACR_NAME: ${{ steps.values.outputs.ACR_NAME }}
-          TAG: ${{ env.GITHUB_RUN_NUMBER }}
       - name: Deploy container to App Service
         working-directory: src/app
-        run: az webapp config container set --docker-custom-image-name $ACR_NAME.azurecr.io/app:$TAG -n $APP_NAME -g $RG
+        run: |
+          TAG=$GITHUB_RUN_NUMBER
+          az webapp config container set --docker-custom-image-name $ACR_NAME.azurecr.io/app:$TAG -n $APP_NAME -g $RG
         env:
           ACR_NAME: ${{ steps.values.outputs.ACR_NAME }}
           APP_NAME: ${{ steps.values.outputs.APP_NAME }}
           RG: ${{ steps.values.outputs.RESOURCE_GROUP }}
-          TAG: ${{ env.GITHUB_RUN_NUMBER }}

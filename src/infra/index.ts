@@ -60,7 +60,7 @@ const acr = new azure.containerservice.Registry("acr", {
   sku: "Standard",
 });
 
-const defaultImage = "microsoft/azure-appservices-go-quickstart";
+const defaultImage = pulumi.interpolate`${acr.name}.azurecr.io/app`
 // create a keyvault
 const keyVault = new azure.keyvault.KeyVault(`${prefix}-kv`, {
   ...resourceGroupArgs,

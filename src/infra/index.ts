@@ -101,6 +101,13 @@ identities.forEach((i) => {
     tenantId,
     secretPermissions: ["list", "get", "set", "delete"], // need delete for pulumi destroy
   });
+
+  const acrRole = new azure.authorization.Assignment(`${i.name}-acr`, {
+    principalId: i.objectId,
+    roleDefinitionName: "AcrPush",
+    scope: acr.id,
+  });
+
   keyVaultAccessPolicies.push(objectIdAccessPolicy);
   if (i.appId) {
     const appIdAccessPolicy = new azure.keyvault.AccessPolicy(

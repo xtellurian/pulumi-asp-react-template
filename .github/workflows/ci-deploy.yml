@@ -42,21 +42,14 @@ jobs:
         id: values
         working-directory: src/infra
         run: echo "::set-output name=ACR_NAME::$(pulumi stack output acrName)"
-      - name: Get ACR Username and Password
-        id: ecr
-        uses: elgohr/acr-login-action@master
-        with:
-          service_principal: ${{ secrets.ARM_CLIENT_ID }}
-          service_principal_password: ${{ secrets.ARM_CLIENT_SECRET }}
-          tenant: ${{ secrets.ARM_TENANT_ID }}
-          registry: ${{ steps.values.outputs.ACR_NAME }}
-          repository: app
       - name: login to ACR
         run: |
-          docker login -u $USERNAME -p $PASSWORD
+          # Log in to Docker with service principal credentials
+          docker login "$ACR_NAME.azurecr.io" -u $USERNAME -p $PASSWORD
         env:
-          USERNAME: ${{ steps.ecr.outputs.username }}
-          PASSWORD: ${{ steps.ecr.outputs.password }}
+          USERNAME: ${{ secrets.ARM_CLIENT_ID }}
+          PASSWORD: ${{ secrets.ARM_CLIENT_SECRET }}
+          ACR_NAME: ${{ steps.values.outputs.ACR_NAME }}
       - name: Deploy Script
         working-directory: src
         run: ./deploy.sh $ACR_NAME

@@ -55,7 +55,7 @@ const acr = new azure.containerservice.Registry("acr", {
   sku: "Standard",
 });
 
-const imageName = pulumi.interpolate`${acr.loginServer}/app`;
+const defaultImage = "microsoft/azure-appservices-go-quickstart";
 // create a keyvault
 const keyVault = new azure.keyvault.KeyVault(`${prefix}-kv`, {
   ...resourceGroupArgs,
@@ -64,29 +64,35 @@ const keyVault = new azure.keyvault.KeyVault(`${prefix}-kv`, {
   tenantId,
 });
 
-const app = new azure.appservice.AppService(`${prefix}-as`, {
-  ...resourceGroupArgs,
+const app = new azure.appservice.AppService(
+  `${prefix}-as`,
+  {
+    ...resourceGroupArgs,
 
-  appServicePlanId: appServicePlan.id,
-  appSettings: {
-    APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.instrumentationKey,
-    APPLICATIONINSIGHTS_CONNECTION_STRING: pulumi.interpolate`InstrumentationKey=${appInsights.instrumentationKey}`,
-    ApplicationInsightsAgent_EXTENSION_VERSION: "~2",
-    DOCKER_REGISTRY_SERVER_PASSWORD: acr.adminPassword,
-    DOCKER_REGISTRY_SERVER_URL: pulumi.interpolate`https://${acr.loginServer}`,
-    DOCKER_REGISTRY_SERVER_USERNAME: acr.adminUsername,
-    WEBSITES_ENABLE_APP_SERVICE_STORAGE: "false",
-    KeyVaultUri: keyVault.vaultUri,
-    StorageAccount__TableName: table.name,
+    appServicePlanId: appServicePlan.id,
+    appSettings: {
+      APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.instrumentationKey,
+      APPLICATIONINSIGHTS_CONNECTION_STRING: pulumi.interpolate`InstrumentationKey=${appInsights.instrumentationKey}`,
+      ApplicationInsightsAgent_EXTENSION_VERSION: "~2",
+      DOCKER_REGISTRY_SERVER_PASSWORD: acr.adminPassword,
+      DOCKER_REGISTRY_SERVER_URL: pulumi.interpolate`https://${acr.loginServer}`,
+      DOCKER_REGISTRY_SERVER_USERNAME: acr.adminUsername,
+      WEBSITES_ENABLE_APP_SERVICE_STORAGE: "false",
+      KeyVaultUri: keyVault.vaultUri,
+      StorageAccount__TableName: table.name,
+    },
+    siteConfig: {
+      alwaysOn: true,
+      linuxFxVersion: pulumi.interpolate`DOCKER|${defaultImage}:latest`,
+    },
+    identity: {
+      type: "SystemAssigned",
+    },
   },
-  siteConfig: {
-    alwaysOn: true,
-    linuxFxVersion: pulumi.interpolate`DOCKER|${imageName}:latest`,
-  },
-  identity: {
-    type: "SystemAssigned",
-  },
-});
+  {
+    ignoreChanges: ["appSettings.siteConfig.linuxFxVersion"],
+  }
+);
 
 // ACCESS POLICIES
 // keep track of the access policies
@@ -158,6 +164,8 @@ const connectionStringSecret = new azure.keyvault.Secret(
     dependsOn: keyVaultAccessPolicies, // ensure we have access to the KV before tring to create a secret
   }
 );
+export const rg = resourceGroup.name;
+export const appName = app.name;
 export const acrName = acr.name;
 export const endpoint = pulumi.interpolate`https://${app.defaultSiteHostname}`;
 export const kvUri = keyVault.vaultUri;

@@ -39,23 +39,26 @@ jobs:
           PULUMI_CI: up
         # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Set ACR_NAME Environment Variable
+        id: values
         working-directory: src/infra
-        run: echo "::set-env name=ACR_NAME::$(pulumi stack output acrName)"
-      - name: Login to ACR
+        run: echo "::set-output name=ACR_NAME::$(pulumi stack output acrName)"
+      - name: Get ACR Username and Password
         id: ecr
         uses: elgohr/acr-login-action@master
         with:
           service_principal: ${{ secrets.ARM_CLIENT_ID }}
           service_principal_password: ${{ secrets.ARM_CLIENT_SECRET }}
           tenant: ${{ secrets.ARM_TENANT_ID }}
-          registry: ${{ ACR_NAME }}
+          registry: ${{ steps.values.outputs.ACR_NAME }}
           repository: app
       - name: login to ACR
         run: |
           docker login -u $USERNAME -p $PASSWORD
         env:
-          USERNAME: steps.ecr.outputs.username
-          PASSWORD: steps.ecr.outputs.password
+          USERNAME: ${{ steps.ecr.outputs.username }}
+          PASSWORD: ${{ steps.ecr.outputs.password }}
       - name: Deploy Script
         working-directory: src
         run: ./deploy.sh $ACR_NAME
+        env:
+          ACR_NAME: ${{ steps.values.outputs.ACR_NAME }}

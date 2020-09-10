@@ -15,6 +15,12 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 1
+      - name: Sign into Azure CLI
+        run: az login --service-principal --username ARM_CLIENT_ID --password ARM_CLIENT_SECRET --tenant ARM_TENANT_ID
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
       - uses: actions/setup-dotnet@v1
         with:
           dotnet-version: "3.1.x" # SDK Version to use; x will use the latest version of the 3.1 channel
@@ -41,7 +47,10 @@ jobs:
       - name: Set ACR_NAME Environment Variable
         id: values
         working-directory: src/infra
-        run: echo "::set-output name=ACR_NAME::$(pulumi stack output acrName)"
+        run: |
+          echo "::set-output name=ACR_NAME::$(pulumi stack output acrName)"
+          echo "::set-output name=RESOURCE_GROUP::$(pulumi stack output rg)"
+          echo "::set-output name=APP_NAME::$(pulumi stack output appName)"
       - name: login to ACR
         run: |
           # Log in to Docker with service principal credentials
@@ -50,8 +59,19 @@ jobs:
           USERNAME: ${{ secrets.ARM_CLIENT_ID }}
           PASSWORD: ${{ secrets.ARM_CLIENT_SECRET }}
           ACR_NAME: ${{ steps.values.outputs.ACR_NAME }}
-      - name: Deploy Script
-        working-directory: src
-        run: ./deploy.sh $ACR_NAME
+      - name: Push Docker Image to ACR
+        working-directory: src/app
+        run: |
+          docker build -t $ACR_NAME.azurecr.io/app:$TAG .
+          docker push $ACR_NAME.azurecr.io/app:$TAG
         env:
           ACR_NAME: ${{ steps.values.outputs.ACR_NAME }}
+          TAG: ${{ GITHUB_RUN_NUMBER }}
+      - name: Deploy container to App Service
+        working-directory: src/app
+        run: az webapp config container set --docker-custom-image-name $ACR_NAME.azurecr.io/app:$TAG -n $APP_NAME -g $RG
+        env:
+          ACR_NAME: ${{ steps.values.outputs.ACR_NAME }}
+          APP_NAME: ${{ steps.values.outputs.APP_NAME }}
+          RG: ${{ steps.values.outputs.RESOURCE_GROUP }}
+          TAG: ${{ GITHUB_RUN_NUMBER }}

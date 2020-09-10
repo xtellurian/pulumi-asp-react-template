@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 pushd infra
-ACR_NAME=$(cat ACR_NAME)
+ACR_NAME=$1
 popd
 pushd app
 az acr login -n $ACR_NAME

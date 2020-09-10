@@ -9,7 +9,7 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   deploy:
-    name: Pulumi up
+    name: Deploy Infrastructure and App
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -38,6 +38,10 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CI: up
         # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: export ACR name
+        working-directory: src/infra
+        run: |
+          pulumi stack output acrName >> ACR_NAME
       - uses: actions/checkout@v2
       - name: Azure Login
         uses: azure/login@v1

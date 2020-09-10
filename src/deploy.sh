@@ -1,7 +1,7 @@
 #!/bin/bash
-
+set -e
 pushd infra
-ACR_NAME=$(pulumi stack output acrName)
+ACR_NAME=$(cat ACR_NAME)
 popd
 pushd app
 az acr login -n $ACR_NAME

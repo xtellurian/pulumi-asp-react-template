@@ -5,8 +5,13 @@ const azureConfig = new pulumi.Config("azure");
 const tenantId = azureConfig.require("tenantId");
 // use first 10 characters of the stackname as prefix for resource names
 const prefix = pulumi.getStack().substring(0, 9);
-
-const resourceGroup = new azure.core.ResourceGroup(`${prefix}-rg`);
+const tags = {
+  project: pulumi.getProject(),
+  stack: pulumi.getStack(),
+};
+const resourceGroup = new azure.core.ResourceGroup(`${prefix}-rg`, {
+  tags,
+});
 
 const resourceGroupArgs = {
   resourceGroupName: resourceGroup.name,
@@ -154,7 +159,7 @@ const sampleSecret = new azure.keyvault.Secret(
 
 // store the connection string in the key vault
 const connectionStringSecret = new azure.keyvault.Secret(
-  `${prefix}-sadb`,
+  `${prefix}-sacs`,
   {
     keyVaultId: keyVault.id,
     name: "StorageAccount--ConnectionString",

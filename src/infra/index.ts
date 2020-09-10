@@ -1,6 +1,9 @@
 import * as azure from "@pulumi/azure";
 import * as pulumi from "@pulumi/pulumi";
 import { AzureId } from "./azureId";
+import * as docker from "@pulumi/docker";
+
+const rootConfig = new pulumi.Config();
 const azureConfig = new pulumi.Config("azure");
 const tenantId = azureConfig.require("tenantId");
 // use first 10 characters of the stackname as prefix for resource names
@@ -12,7 +15,7 @@ const tags = {
 const resourceGroup = new azure.core.ResourceGroup(`${prefix}-rg`, {
   tags,
 });
-
+const dockerTagPrefix = rootConfig.get("tagPrefix") || "latest";
 const resourceGroupArgs = {
   resourceGroupName: resourceGroup.name,
   location: resourceGroup.location,
@@ -60,7 +63,19 @@ const acr = new azure.containerservice.Registry("acr", {
   sku: "Standard",
 });
 
-const defaultImage = pulumi.interpolate`${acr.name}.azurecr.io/app`
+const fullImage = pulumi.interpolate`${acr.name}.azurecr.io/app:${dockerTagPrefix}`;
+const appImage = new docker.Image("appImage", {
+  imageName: fullImage,
+  build: {
+    context: `../app`,
+  },
+  registry: {
+    server: acr.loginServer,
+    username: acr.adminUsername,
+    password: acr.adminPassword,
+  },
+});
+
 // create a keyvault
 const keyVault = new azure.keyvault.KeyVault(`${prefix}-kv`, {
   ...resourceGroupArgs,
@@ -69,35 +84,29 @@ const keyVault = new azure.keyvault.KeyVault(`${prefix}-kv`, {
   tenantId,
 });
 
-const app = new azure.appservice.AppService(
-  `${prefix}-as`,
-  {
-    ...resourceGroupArgs,
+const app = new azure.appservice.AppService(`${prefix}-as`, {
+  ...resourceGroupArgs,
 
-    appServicePlanId: appServicePlan.id,
-    appSettings: {
-      APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.instrumentationKey,
-      APPLICATIONINSIGHTS_CONNECTION_STRING: pulumi.interpolate`InstrumentationKey=${appInsights.instrumentationKey}`,
-      ApplicationInsightsAgent_EXTENSION_VERSION: "~2",
-      DOCKER_REGISTRY_SERVER_PASSWORD: acr.adminPassword,
-      DOCKER_REGISTRY_SERVER_URL: pulumi.interpolate`https://${acr.loginServer}`,
-      DOCKER_REGISTRY_SERVER_USERNAME: acr.adminUsername,
-      WEBSITES_ENABLE_APP_SERVICE_STORAGE: "false",
-      KeyVaultUri: keyVault.vaultUri,
-      StorageAccount__TableName: table.name,
-    },
-    siteConfig: {
-      alwaysOn: true,
-      linuxFxVersion: pulumi.interpolate`DOCKER|${defaultImage}:latest`,
-    },
-    identity: {
-      type: "SystemAssigned",
-    },
+  appServicePlanId: appServicePlan.id,
+  appSettings: {
+    APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.instrumentationKey,
+    APPLICATIONINSIGHTS_CONNECTION_STRING: pulumi.interpolate`InstrumentationKey=${appInsights.instrumentationKey}`,
+    ApplicationInsightsAgent_EXTENSION_VERSION: "~2",
+    DOCKER_REGISTRY_SERVER_PASSWORD: acr.adminPassword,
+    DOCKER_REGISTRY_SERVER_URL: pulumi.interpolate`https://${acr.loginServer}`,
+    DOCKER_REGISTRY_SERVER_USERNAME: acr.adminUsername,
+    WEBSITES_ENABLE_APP_SERVICE_STORAGE: "false",
+    KeyVaultUri: keyVault.vaultUri,
+    StorageAccount__TableName: table.name,
   },
-  {
-    ignoreChanges: ["appSettings.siteConfig.linuxFxVersion"],
-  }
-);
+  siteConfig: {
+    alwaysOn: true,
+    linuxFxVersion: pulumi.interpolate`DOCKER|${appImage.imageName}`,
+  },
+  identity: {
+    type: "SystemAssigned",
+  },
+});
 
 // ACCESS POLICIES
 // keep track of the access policies

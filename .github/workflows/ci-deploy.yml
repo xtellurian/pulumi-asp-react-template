@@ -43,36 +43,3 @@ jobs:
           ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           PULUMI_CI: up
-        # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: Set ACR_NAME Environment Variable
-        id: values
-        working-directory: src/infra
-        run: |
-          echo "::set-output name=ACR_NAME::$(pulumi stack output acrName)"
-          echo "::set-output name=RESOURCE_GROUP::$(pulumi stack output rg)"
-          echo "::set-output name=APP_NAME::$(pulumi stack output appName)"
-      - name: login to ACR
-        run: |
-          # Log in to Docker with service principal credentials
-          docker login "$ACR_NAME.azurecr.io" -u $USERNAME -p $PASSWORD
-        env:
-          USERNAME: ${{ secrets.ARM_CLIENT_ID }}
-          PASSWORD: ${{ secrets.ARM_CLIENT_SECRET }}
-          ACR_NAME: ${{ steps.values.outputs.ACR_NAME }}
-      - name: Push Docker Image to ACR
-        working-directory: src/app
-        run: |
-          TAG=$GITHUB_RUN_NUMBER
-          docker build -t $ACR_NAME.azurecr.io/app:$TAG .
-          docker push $ACR_NAME.azurecr.io/app:$TAG
-        env:
-          ACR_NAME: ${{ steps.values.outputs.ACR_NAME }}
-      - name: Deploy container to App Service
-        working-directory: src/app
-        run: |
-          TAG=$GITHUB_RUN_NUMBER
-          az webapp config container set --docker-custom-image-name $ACR_NAME.azurecr.io/app:$TAG -n $APP_NAME -g $RG
-        env:
-          ACR_NAME: ${{ steps.values.outputs.ACR_NAME }}
-          APP_NAME: ${{ steps.values.outputs.APP_NAME }}
-          RG: ${{ steps.values.outputs.RESOURCE_GROUP }}

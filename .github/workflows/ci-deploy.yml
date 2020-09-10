@@ -41,16 +41,21 @@ jobs:
       - name: Set ACR_NAME Environment Variable
         working-directory: src/infra
         run: echo "::set-env name=ACR_NAME::$(pulumi stack output acrName)"
-      - uses: actions/checkout@v2
-      - name: install azure CLI
+      - name: Login to ACR
+        id: ecr
+        uses: elgohr/acr-login-action@master
+        with:
+          service_principal: ${{ secrets.ARM_CLIENT_ID }}
+          service_principal_password: ${{ secrets.ARM_CLIENT_SECRET }}
+          tenant: ${{ secrets.ARM_TENANT_ID }}
+          registry: ${{ ACR_NAME }}
+          repository: app
+      - name: login to ACR
         run: |
-          curl -L https://aka.ms/InstallAzureCli | bash
-      - name: Azure Login
-        run: az login --service-principal -u $ARM_CLIENT_ID -p $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
+          docker login -u $USERNAME -p $PASSWORD
         env:
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          USERNAME: steps.ecr.outputs.username
+          PASSWORD: steps.ecr.outputs.password
       - name: Deploy Script
         working-directory: src
         run: ./deploy.sh $ACR_NAME

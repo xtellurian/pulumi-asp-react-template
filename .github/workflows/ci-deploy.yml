@@ -39,7 +39,7 @@ jobs:
           PULUMI_CI: up
         # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Set ACR_NAME Environment Variable
-        run: echo ""::set-env name=ACR_NAME::$(pulumi stack output acrName)"
+        run: echo "::set-env name=ACR_NAME::$(pulumi stack output acrName)"
       - uses: actions/checkout@v2
       - name: Azure Login
         uses: azure/login@v1

@@ -6,6 +6,15 @@ import * as docker from "@pulumi/docker";
 const rootConfig = new pulumi.Config();
 const azureConfig = new pulumi.Config("azure");
 const tenantId = azureConfig.require("tenantId");
+
+// Check, and don't deploy if Friday
+const dayOfWeek = new Date().getDay();
+if (!pulumi.runtime.isDryRun() && dayOfWeek === 5) {
+  throw new Error("Don't deploy on Friday!");
+} else if (!pulumi.runtime.isDryRun()) {
+  console.log("Not a Friday. Continuing...");
+}
+
 // use first 10 characters of the stackname as prefix for resource names
 const prefix = pulumi.getStack().substring(0, 9);
 const tags = {
@@ -104,14 +113,13 @@ const app = new azure.appservice.AppService(`${prefix}-as`, {
     linuxFxVersion: pulumi.interpolate`DOCKER|${appImage.imageName}`,
   },
   identity: {
-    type: "SystemAssigned",
+    type: "SystemAssigned", // Assign the Web App an Azure Identity
   },
 });
 
 // ACCESS POLICIES
 // keep track of the access policies
 const keyVaultAccessPolicies: azure.keyvault.AccessPolicy[] = [];
-// get the list of identities from the config
 const identities = azureConfig.requireObject<AzureId[]>("identities");
 // create an access policy for each identity
 identities.forEach((i) => {
@@ -124,6 +132,7 @@ identities.forEach((i) => {
 
   keyVaultAccessPolicies.push(objectIdAccessPolicy);
   if (i.appId) {
+    // sometimes there's an Application Id
     const appIdAccessPolicy = new azure.keyvault.AccessPolicy(
       `${i.name}-app-kv`,
       {
@@ -142,23 +151,11 @@ identities.forEach((i) => {
 const appAccessPolicy = new azure.keyvault.AccessPolicy("app-kv", {
   keyVaultId: keyVault.id,
   objectId: app.identity.apply(
-    (i) => i.principalId || "11111111-1111-1111-1111-111111111111"
+    (i) => i.principalId || "11111111-1111-1111-1111-111111111111" // workaround for a bug when principalId is null
   ),
   tenantId,
   secretPermissions: ["list", "get", "set", "delete"], // need delete for pulumi destroy
 });
-// store a sample secret as a demonstration
-const sampleSecret = new azure.keyvault.Secret(
-  `${prefix}-sample`,
-  {
-    keyVaultId: keyVault.id,
-    name: "Summary",
-    value: "IT'S COLD!",
-  },
-  {
-    dependsOn: keyVaultAccessPolicies, // ensure we have access to the KV before tring to create a secret
-  }
-);
 
 // store the connection string in the key vault
 const connectionStringSecret = new azure.keyvault.Secret(
@@ -172,6 +169,20 @@ const connectionStringSecret = new azure.keyvault.Secret(
     dependsOn: keyVaultAccessPolicies, // ensure we have access to the KV before tring to create a secret
   }
 );
+
+// DEMO SECRET
+const sampleSecret = new azure.keyvault.Secret(
+  `${prefix}-sample`,
+  {
+    keyVaultId: keyVault.id,
+    name: "Summary",
+    value: "IT'S COLD!",
+  },
+  {
+    dependsOn: keyVaultAccessPolicies, // ensure we have access to the KV before tring to create a secret
+  }
+);
+
 export const rg = resourceGroup.name;
 export const appName = app.name;
 export const acrName = acr.name;

@@ -176,7 +176,7 @@ const sampleSecret = new azure.keyvault.Secret(
   {
     keyVaultId: keyVault.id,
     name: "Summary",
-    value: "IT'S COLD!",
+    value: "IT'S NOT THAT COLD!",
   },
   {
     dependsOn: keyVaultAccessPolicies, // ensure we have access to the KV before tring to create a secret

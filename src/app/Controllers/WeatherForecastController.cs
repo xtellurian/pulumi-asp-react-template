@@ -18,9 +18,9 @@ namespace app.Controllers
         };
 
         private readonly ILogger<WeatherForecastController> _logger;
-        private readonly IOptions<SecretForecast> secretOptions;
+        private readonly IOptionsMonitor<SecretForecast> secretOptions;
 
-        public WeatherForecastController(ILogger<WeatherForecastController> logger, IOptions<SecretForecast> secretOptions)
+        public WeatherForecastController(ILogger<WeatherForecastController> logger, IOptionsMonitor<SecretForecast> secretOptions)
         {
             _logger = logger;
             this.secretOptions = secretOptions;
@@ -42,7 +42,7 @@ namespace app.Controllers
             {
                 Date = DateTime.MinValue,
                 TemperatureC = -99,
-                Summary = secretOptions.Value.Summary
+                Summary = secretOptions.CurrentValue.Summary
             });
             return forecasts;
         }

@@ -3,6 +3,7 @@ import * as pulumi from "@pulumi/pulumi";
 import { AzureId } from "./azureId";
 import * as docker from "@pulumi/docker";
 
+// Get configuration values for this stack.
 const rootConfig = new pulumi.Config();
 const azureConfig = new pulumi.Config("azure");
 const tenantId = azureConfig.require("tenantId");
@@ -17,18 +18,29 @@ if (!pulumi.runtime.isDryRun() && dayOfWeek === 5) {
 
 // use first 10 characters of the stackname as prefix for resource names
 const prefix = pulumi.getStack().substring(0, 9);
-const tags = {
-  project: pulumi.getProject(),
-  stack: pulumi.getStack(),
-};
+
+// Create an Azure Resource Group
 const resourceGroup = new azure.core.ResourceGroup(`${prefix}-rg`, {
-  tags,
+  name: `${prefix}`,
+  tags: {
+    project: pulumi.getProject(),
+    stack: pulumi.getStack(),
+  },
 });
-const dockerTagPrefix = rootConfig.get("tagPrefix") || "latest";
+
+// Helper object
 const resourceGroupArgs = {
   resourceGroupName: resourceGroup.name,
   location: resourceGroup.location,
 };
+
+// create a keyvault
+const keyVault = new azure.keyvault.KeyVault(`${prefix}-kv`, {
+  ...resourceGroupArgs,
+
+  skuName: "standard",
+  tenantId,
+});
 
 // Storage Account name must be lowercase and cannot have any dash characters
 const storageAccountName = `${prefix.toLowerCase().replace(/-/g, "")}sa`;
@@ -38,16 +50,6 @@ const storageAccount = new azure.storage.Account(storageAccountName, {
   accountKind: "StorageV2",
   accountTier: "Standard",
   accountReplicationType: "LRS",
-});
-
-const appServicePlan = new azure.appservice.Plan(`${prefix}-asp`, {
-  ...resourceGroupArgs,
-  reserved: true,
-  kind: "Linux",
-  sku: {
-    tier: "Basic",
-    size: "B1",
-  },
 });
 
 const storageContainer = new azure.storage.Container(`${prefix}-c`, {
@@ -72,6 +74,8 @@ const acr = new azure.containerservice.Registry("acr", {
   sku: "Standard",
 });
 
+// Create the Container Registry, App Service Plan, and Website
+const dockerTagPrefix = rootConfig.get("tagPrefix") || "latest";
 const fullImage = pulumi.interpolate`${acr.name}.azurecr.io/app:${dockerTagPrefix}`;
 const appImage = new docker.Image("appImage", {
   imageName: fullImage,
@@ -85,12 +89,14 @@ const appImage = new docker.Image("appImage", {
   },
 });
 
-// create a keyvault
-const keyVault = new azure.keyvault.KeyVault(`${prefix}-kv`, {
+const appServicePlan = new azure.appservice.Plan(`${prefix}-asp`, {
   ...resourceGroupArgs,
-
-  skuName: "standard",
-  tenantId,
+  reserved: true,
+  kind: "Linux",
+  sku: {
+    tier: "Basic",
+    size: "B1",
+  },
 });
 
 const app = new azure.appservice.AppService(`${prefix}-as`, {
@@ -117,10 +123,10 @@ const app = new azure.appservice.AppService(`${prefix}-as`, {
   },
 });
 
-// ACCESS POLICIES
-// keep track of the access policies
-const keyVaultAccessPolicies: azure.keyvault.AccessPolicy[] = [];
+// Create KeyVault Access Policies
 const identities = azureConfig.requireObject<AzureId[]>("identities");
+// keep track of the access policies in an array
+const keyVaultAccessPolicies: azure.keyvault.AccessPolicy[] = [];
 // create an access policy for each identity
 identities.forEach((i) => {
   const objectIdAccessPolicy = new azure.keyvault.AccessPolicy(`${i.name}-kv`, {
@@ -129,8 +135,8 @@ identities.forEach((i) => {
     tenantId,
     secretPermissions: ["list", "get", "set", "delete"], // need delete for pulumi destroy
   });
-
   keyVaultAccessPolicies.push(objectIdAccessPolicy);
+
   if (i.appId) {
     // sometimes there's an Application Id
     const appIdAccessPolicy = new azure.keyvault.AccessPolicy(
@@ -176,13 +182,14 @@ const sampleSecret = new azure.keyvault.Secret(
   {
     keyVaultId: keyVault.id,
     name: "Summary",
-    value: "IT'S NOT THAT COLD!",
+    value: "IT'S COLD!",
   },
   {
     dependsOn: keyVaultAccessPolicies, // ensure we have access to the KV before tring to create a secret
   }
 );
 
+// Stack Exports
 export const rg = resourceGroup.name;
 export const appName = app.name;
 export const acrName = acr.name;
